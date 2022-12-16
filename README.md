@@ -1,12 +1,8 @@
-# PERSIST_Study
+# PERSIST study - Creation and application of 4 paramater logistic model
 
-# Title: PERSIST study - Creation and application of 4 paramater logistic model
+Author(s): Emily Ricotta
 
-# Persistent Identifier: [A unique persistent identified (PID) such as a digital object identifier (DOI) or accession number supports data discovery, reporting and assessment.]
-
-# Author(s): Emily Ricotta
-
-# Grant Number: [AI001335]
+Grant Number: [AI001335]
 
 This is code to create the functions and then calculate ELISA antibody concentrations from optical density using a 4 parameter logistic model. 
 
