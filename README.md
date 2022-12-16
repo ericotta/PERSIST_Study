@@ -1,5 +1,13 @@
 # PERSIST_Study
 
+# Title: PERSIST study - Creation and application of 4 paramater logistic model
+
+# Persistent Identifier: [A unique persistent identified (PID) such as a digital object identifier (DOI) or accession number supports data discovery, reporting and assessment.]
+
+# Author(s): Emily Ricotta
+
+# Grant Number: [AI001335]
+
 This is code to create the functions and then calculate ELISA antibody concentrations from optical density using a 4 parameter logistic model. 
 
 ELISAs were conducted using the methods described in Klumpp-Thomas, C., Kalish, H., Drew, M. et al. Standardization of ELISA protocols for serosurveys of the SARS-CoV-2 pandemic using clinical and at-home blood sampling. Nat Commun 12, 113 (2021). https://doi.org/10.1038/s41467-020-20383-x. Concentrations were calculated using the equations in supplemental figure 10 in the supplementary material. 
@@ -31,3 +39,4 @@ dr4pl_2.0.0
 Simulated data has been provided as an example.
 
 Please direct any questions or comments to emily.ricotta@nih.gov
+
