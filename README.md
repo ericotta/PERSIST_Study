@@ -15,4 +15,4 @@ All of the surveys and tools contained in this repository are public documents, 
 medRxiv 2021.03.17.21253760; doi: https://doi.org/10.1101/2021.03.17.21253760), with slight modifications
 
 
-
+All survey instruments have been reviewed and approved by the Institutional Review Board of the National Institutes of Health.
