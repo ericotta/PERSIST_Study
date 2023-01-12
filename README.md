@@ -1,4 +1,3 @@
-# PERSIST study survey instruments
 
 This repository contains survey instruments designed for the PERSIST study, "Analysis of the Immune Response to COVID-19 Vaccination and Outcomes in Individuals With and Without Immune Deficiencies and Dysregulations" 
 (NCT04852276, https://clinicaltrials.gov/ct2/show/NCT04852276?term=ricotta&draw=2&rank=1)
