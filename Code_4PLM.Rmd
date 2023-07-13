@@ -1,0 +1,138 @@
+Copyright (c) 2022, Emily Ricotta
+All rights reserved.
+
+This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree. 
+
+---
+title: "PERSIST study - Creation and application of 4 paramater logistic model"
+author: "Emily Ricotta"
+date: "2022-12-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(magrittr)
+require(drc)
+require(dr4pl)
+
+set.seed(1234)
+```
+
+```{r load data, include=FALSE}
+#Load provided demo data
+plate1<-load("plate1_demodata.RData")
+```
+
+Some of the following code is from https://katatrepsis.com/2018/09/24/elisa-analysis-in-r/
+
+The functions conc2od and od2conc were created using the equations in https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-020-20383-x/MediaObjects/41467_2020_20383_MOESM1_ESM.pdf
+
+Concentration calculations solved using dr4pl package
+
+```{r concentration/optical density equation functions}
+#Equation A in paper's supplementary figure 10
+conc2od = function(conc, slope, lower, upper, ic50) {
+  setNames(lower + (conc ^ slope * (upper - lower)) / (conc^slope + ic50 ^ slope), "OD")
+}
+
+#Equation B in paper's supplementary figure 10
+od2conc = function(od, slope, lower, upper, ic50) {
+  if(od <= lower) {
+    0
+  } else if(od >= upper) {
+    1/400
+  } else {
+    setNames(ic50 * ((lower - upper) / (od - upper) - 1)^(1/upper), "conc")
+  }
+}
+```
+
+```{r sIgG concentraton function}
+sIgG_model<-function(x){
+  #Select analyte for plot data
+  fps<-forplot %>%
+  filter(analyte=="Spike IgG" & !is.na(concentration)) %>%
+  distinct()
+  #Construct 4 parameter logistic regression model 
+  model.sIgG <- dr4pl(dose = fps$concentration,
+                      response = fps$OD,
+                      method.init = "logistic")
+  #Name the coefficients from the model something intuitive
+  coefs <- setNames(
+    model.sIgG$parameters,
+    c("Upper", "EC50", "Slope", "Lower"))
+  #Calculate the IC50
+  IC50<-IC(model.sIgG, 50)    
+  OD_at_IC50<-conc2od(IC50, coefs["Slope"], coefs["Lower"], coefs["Upper"], coefs["EC50"])
+  #Plot the model
+  plot(model.sIgG)+
+    geom_hline(yintercept = OD_at_IC50) +
+    geom_vline(xintercept=IC50)
+  #Choose the optical density closest to the IC50 calculated from the standard curve
+  sIgG_conc <- x %>%
+    filter(analyte=="Spike IgG") %>%
+    group_by(sampid) %>%
+    mutate(ODave_IC50 = nth(ODave, which.min(abs(ODave-OD_at_IC50))))
+  #Keep only the row that is closest to the IC50. If there is a tie, pick the highest dilution
+  sIgG_conc %<>%
+    group_by(sampid) %>%
+    mutate(ODneat=case_when(OD_dilution=="Neat"~ODave,
+                            TRUE~NA_real_),
+           ODneat=zoo::na.locf(ODneat)) %>%
+    filter(ODave==ODave_IC50) %>%
+    filter(row_number()==n()) %>%
+    mutate(multiplier=case_when(OD_dilution=="Neat"~10,
+                                OD_dilution=="1:10 Dilution"~100,
+                                OD_dilution=="1:100 Dilution"~1000,
+                                OD_dilution=="1:1000 Dilution"~10000,
+                                TRUE~NA_real_))
+  #Calculate the concentration from the standard curve
+  sIgG_conc %<>%
+    filter(analyte=="Spike IgG") %>%
+    mutate(OD_flag=case_when(ODave <= coefs["Lower"] ~ -1,
+                             ODave >= coefs["Upper"] ~ 1,
+                             TRUE ~ 0),
+           conc=od2conc(ODave, coefs["Slope"], coefs["Lower"], coefs["Upper"], coefs["EC50"]),
+           conc.ug_ml=(conc*multiplier)*1000)
+  sIgG_conc %<>%
+    group_by(sampid) %>%
+    mutate(cutoff=case_when(ODneat>0.674720844 &
+                                 conc.ug_ml>0 ~ 1,
+                               TRUE~0),
+           cutoff=max(cutoff))
+    sIgG_conc %<>%
+    dplyr::select(c(sampid, analyte, ODave, OD_flag, OD_dilution, multiplier, conc, conc.ug_ml, cutoff))
+}
+```
+
+```{r Plate 1 concentration calculations}
+#Create the dataset
+forplot1<-plate1 %>%
+  dplyr::select(c("analyte", "OD"=Blank1_ODave, "dilution"=Curve1_dilution))
+forplot2<-plate1 %>%
+  dplyr::select(c("analyte", "OD"=Blank2_ODave, "dilution"=Curve2_dilution))
+forplot<-bind_rows(forplot1, forplot2)
+
+#Calculate the concentration based on the dilution factor of the well
+forplot %<>%
+  mutate(concentration=case_when(
+    dilution=="1:100"~(1/100)*0.0025,
+    dilution=="1:300"~(1/300)*0.0025,
+    dilution=="1:500"~(1/500)*0.0025,
+    dilution=="1:600"~(1/600)*0.0025,
+    dilution=="1:1000"~(1/1000)*0.0025,
+    dilution=="1:1200"~(1/1200)*0.0025,
+    dilution=="1:2500"~(1/2500)*0.0025,
+    dilution=="1:2400"~(1/2400)*0.0025,
+    dilution=="1:5000"~(1/5000)*0.0025,
+    dilution=="1:4800"~(1/4800)*0.0025,
+    dilution=="1:10,000"~(1/10000)*0.0025,
+    dilution=="1:9600"~(1/9600)*0.0025,
+    TRUE~NA_real_))
+
+sIgG_conc<-sIgG_model(plate1)
+
+```
