@@ -6,6 +6,6 @@ This repository contains code and simulated data relevant to the PERSIST study, 
 This study is based at the National Institute of Allergy and Infectious Diseases, National Institutes of Health. This github repository is maintained by Dr. Emily Ricotta, and all thoughts and opinions contained within are personal and do not necessarily represent the views of NIAID, the NIH, or the US Government.
 
 
-Copyright (c) 2022, Emily Ricotta
+Copyright (c) 2023, Emily Ricotta
 All rights reserved.
 
