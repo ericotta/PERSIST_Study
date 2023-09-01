@@ -6,7 +6,7 @@
 
 
 
-#### Data cleaning ----
+#### Preliminaries ----
 
 
 
@@ -30,8 +30,9 @@ library(patchwork)
 library(grid)
 library(cowplot)
 
-# Load the data...might need to change this as needed
-load("C:/Users/bustosfa/Rotation 2/Data/PERSIST_data_v7_2022-12-09.RData")
+# Load the data. Change the file locations as needed
+load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data.RData")
+load("C:/Users/bustosfa/Rotation 2/Data/Final_AE_data.RData")
 variants <- read.csv(here("C:/Users/bustosfa/Rotation 2/Data", "variants.csv"))
 
 # Custom FB functions
@@ -112,93 +113,6 @@ element_grob.theme_border <- function(
   )
 }
 
-# Start cleaning the data
-data7 %<>%
-  group_by(ks_patid) %>%
-  mutate(N_pos_before_sample = case_when(date_first_N_pos < Collection.date ~ 1,
-                                         TRUE ~ 0)) %>%   
-  mutate(N_pos = case_when(nucleocapsidOD >= 0.9 ~ 1,
-                           TRUE ~ 0),
-         conc_cutoff = case_when(conc.ug_ml >= 0.0009426984 & ks_cutoff == 1 ~ "Positive",
-                                 conc.ug_ml >= 0.0009426984 & ks_cutoff == 0 ~ "Indeterminate",
-                                 TRUE ~ "Negative"))
-
-# FB: Combine 6 months post-dose 2 and pre-dose 3
-check <- data7 %>%
-  dplyr::select(`Subject ID`, ks_patid, timepoint) %>%
-  filter(timepoint %in% c("6 months post-dose 2", "Pre-dose 3")) %>%
-  distinct() %>%
-  arrange(`Subject ID`) %>%
-  group_by(`Subject ID`) %>%
-  filter(n() > 1)
-check <- as.vector(unique(check$`Subject ID`)) #ID with both timepoints
-
-data7$timepoint2 <- data7$timepoint
-for(i in 1:nrow(data7)){
-  if(data7$`Subject ID`[i] %!in% check & data7$timepoint[i] == "Pre-dose 3"){
-    data7$timepoint2[i] <- "6 months post-dose 2"
-  }
-  if(data7$`Subject ID`[i] %in% check & data7$timepoint[i] == "Pre-dose 3"){
-    data7$timepoint2[i] <- "Remove"
-  }
-}
-check <- data7 %>%
-  dplyr::select(`Subject ID`, timepoint, timepoint2)
-
-data7 <- data7[data7$timepoint2 != "Remove",]
-
-data7$timepoint <- NULL
-data7$timepoint <- data7$timepoint2
-data7$timepoint2 <- NULL
-rm(check)
-
-# Continue with MZ's data cleaning
-df <- data7 %>% 
-  mutate(
-    control = case_when(
-      new_group == "Healthy volunteer" ~ "Healthy volunteer",
-      TRUE ~ "PID"), 
-    nucleocapsid_ks_cutoff = as.factor(
-      case_when(
-        nucleocapsidOD >= 0.9 ~ "Positive",
-        TRUE ~ "Negative")), 
-    timepoint = case_when(
-      timepoint == "6 months post-dose 2" ~ "6 months post-dose 2",
-      timepoint == "Post-dose 1" ~ "Post-dose 1",
-      timepoint == "Post-dose 2" ~ "Post-dose 2",
-      timepoint == "Post-dose 3" ~ "Post-dose 3",
-      timepoint == "Post-dose 4" ~ "Post-dose 4",
-      timepoint == "Post-dose 5" ~ "Post-dose 5",
-      timepoint == "Baseline" ~ "Baseline",
-      timepoint == "6 months post-dose 3" ~ "6 months post-dose 3",
-      timepoint == "6 months post-dose 4" ~ "6 months post-dose 4", 
-      timepoint == "Pre-dose 4" ~"Pre-dose 4"
-    )
-  ) %>%
-  subset(analyte == "Spike IgG") %>% 
-  filter(timepoint %in% c("Baseline", "Post-dose 1", "Post-dose 2", "Post-dose 3",
-                          "6 months post-dose 2", "6 months post-dose 3"))
-
-df$new_group <- factor(df$new_group, levels = c("Healthy volunteer",
-                                                "Antibody deficiency",
-                                                "PIRD",
-                                                "Combined immunodeficiency",
-                                                "Other IEI",
-                                                "Other immune disorder"))
-
-df$control <- factor(df$control, levels = c("Healthy volunteer", "PID"))
-
-df$timepoint <- factor(df$timepoint, levels = c("Baseline", "Post-dose 1", 
-                                                "Post-dose 2", "6 months post-dose 2", 
-                                                "Post-dose 3", "6 months post-dose 3"))
-
-# FB: Change the data's lower limit from 0 to LOD/sqrt(2) and ungroup the data
-table(df$conc.ug_ml >= 0.0009426984)
-df[df$conc.ug_ml < 0.0009426984,]$conc.ug_ml <- 0.0009426984 / sqrt(2)
-
-df <- df %>%
-  ungroup()
-
 
 
 #### Figure 1a - IgG titers for HV and all IDP ----
@@ -222,7 +136,7 @@ df %>%
   geom_jitter(aes(x = control, y = conc.ug_ml, color = control),
               width = 0.2, alpha = 0.4, size = 2.5) + 
   stat_summary(aes(x = control, y = conc.ug_ml, color = control),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10),
                      breaks = seq(0, 40, 10)) +
   stat_compare_means(method = "wilcox.test", # To mirror option,s for fig 1b
@@ -267,7 +181,7 @@ df %>%
   geom_jitter(aes(x = new_group, y = conc.ug_ml, color = new_group),
               width = 0.2, alpha = 0.4, size = 2.5) + 
   stat_summary(aes(x = new_group, y = conc.ug_ml, color = new_group),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10),
                      breaks = seq(0, 40, 10)) +
   coord_cartesian(ylim = c(0, 45)) + 
@@ -346,7 +260,7 @@ df1 %>%
   geom_jitter(aes(x = igrt, y = conc.ug_ml, color = igrt),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = igrt, y = conc.ug_ml, color = igrt),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_color_manual(values = c("Yes" = "royal blue", 
                                 "No" = "salmon")) + 
   facet_wrap(~timepoint, ncol = 6) + 
@@ -392,7 +306,7 @@ df1 %>%
   geom_jitter(aes(x = immunosuppressants, y = conc.ug_ml, color = immunosuppressants),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = immunosuppressants, y = conc.ug_ml, color = immunosuppressants),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_color_manual(values = c("Yes" = "royal blue", 
                                 "No" = "salmon")) + 
   facet_wrap(~timepoint, ncol = 6) + 
@@ -411,6 +325,7 @@ df1 %>%
   guides(colour = guide_legend(override.aes = list(alpha = 1, size = 4.5)))  -> fig_3b
 
 fig_3b
+
 
 
 #### Figure 3c - Sensitivity analysis: Evusheld use ----
@@ -443,7 +358,7 @@ df3c %>%
   geom_jitter(aes(x = evu_plot, y = conc.ug_ml, color = evu_plot),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = evu_plot, y = conc.ug_ml, color = evu_plot),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) +   
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) +   
   scale_color_manual(values = c("Yes" = "royal blue", 
                                 "No" = "salmon")) + 
   facet_wrap(~timepoint, ncol = 6) + 
@@ -543,7 +458,7 @@ save_plot("fig3.pdf", fig_3, base_height = 6.5, base_width = 13.25, dpi = 300) #
 
 
 # Make the dataset for this figure
-dfs3 <- data7 %>%
+dfs3 <- df %>%
   ungroup() %>%
   dplyr::select(`Subject ID`, vaccine_1_date, vaccine_2_date, vaccine_3_date,
                 IDorHV) %>%
@@ -638,7 +553,7 @@ df_s11 %>%
   geom_jitter(aes(x = as.factor(vaccine_1), y = conc.ug_ml, color = as.factor(vaccine_1)),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = as.factor(vaccine_1), y = conc.ug_ml, color = as.factor(vaccine_1)),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_color_manual(values = c("Moderna" = "royal blue", 
                                 "Pfizer" = "salmon"),
                      labels = c("Moderna" = "mRNA-1273 (Moderna)",
@@ -718,7 +633,7 @@ df_s12 %>%
   geom_jitter(aes(x = as.factor(switch), y = conc.ug_ml, color = as.factor(switch)),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = as.factor(switch), y = conc.ug_ml, color = as.factor(switch)),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_color_manual(values = c("Same vaccine brand for doses 1-3" = "royal blue", 
                                 "Switched vaccine brand across doses 1-3" = "salmon")) + 
   facet_grid(new_group ~ timepoint, 
@@ -768,7 +683,7 @@ df1 %>%
   geom_jitter(aes(x = new_group, y = conc.ug_ml, color = new_group),
               width = 0.2, alpha = 0.4, size = 2.5) + 
   stat_summary(aes(x = new_group, y = conc.ug_ml, color = new_group),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10),
                      breaks = seq(0, 40, 10)) +
   coord_cartesian(ylim = c(0, 35)) + 
@@ -844,7 +759,7 @@ df6 %>%
   geom_jitter(aes(x = rituximab.group, y = conc.ug_ml, color = rituximab.group),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = rituximab.group, y = conc.ug_ml, color = rituximab.group),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10)) +
   facet_wrap(~timepoint, ncol = 3) + 
   ylab("Anti-S IgG (ug/ml)") +
@@ -882,7 +797,7 @@ df1 %>%
   geom_jitter(aes(x = factor(N_pos), y = conc.ug_ml, color = factor(N_pos)),
               width = 0.2, alpha = 0.4, size = 3.5) + 
   stat_summary(aes(x = factor(N_pos), y = conc.ug_ml, color = factor(N_pos)),
-               fun = "median", size = 0.5, geom = "crossbar", show.legend = FALSE) + 
+               fun = "median", linewidth = 0.5, geom = "crossbar", show.legend = FALSE) + 
   scale_color_manual(values = c("0" = "royal blue", "1" = "salmon"),
                      labels = c("0" = "Anti-N IgG negative", "1" = "Anti-N IgG positive")) + 
   facet_wrap(~timepoint, ncol = 6) + 
@@ -914,9 +829,7 @@ fig_s15
 
 
 
-# Get the data sand format it
-fp_survey <- read.csv(here("C:/Users/bustosfa/Rotation 2/Data", "fp_survey.csv"))
-
+# Format the survey results
 fp_survey$PATIENT.TYPE[fp_survey$PATIENT.TYPE == "Patient Type: Healthy Volunteer"] <- "HV"
 fp_survey$PATIENT.TYPE[fp_survey$PATIENT.TYPE == "Patient Type: Immune Deficient"] <- "IDP"
 
@@ -926,12 +839,7 @@ fp_survey$PATIENT.TYPE <- factor(fp_survey$PATIENT.TYPE, levels = c("HV", "IDP")
 fp_survey %>%
   mutate(any_local_AE = factor(any_local_AE, levels=c("0", "1"), labels = c("None", "Any Local AE"))) %>%
   filter(any_local_AE != "") %>%
-  filter(TREATMENT.GROUP != "") %>%
-  filter(X3..Which.dose.is.this.for != "",
-         X3..Which.dose.is.this.for != "Dose 4",
-         X3..Which.dose.is.this.for != "Dose 5",
-         X3..Which.dose.is.this.for != "NA") %>%
-  dplyr::select(id = "Participant.ID", control = PATIENT.TYPE, any_local_AE, dose = X3..Which.dose.is.this.for) %>%
+  dplyr::select(id = "Participant.ID", control = PATIENT.TYPE, any_local_AE, dose) %>%
   mutate(local_ae = ifelse(any_local_AE == "None", 0, 1)) %>%
   dplyr::select(-any_local_AE) %>%
   group_by(dose, control) %>%
@@ -977,12 +885,7 @@ fig_s16a
 fp_survey %>%
   mutate(any_systemic_AE = factor(any_systemic_AE, levels=c("0", "1"), labels = c("None", "Any Systemic AE"))) %>%
   filter(any_systemic_AE != "") %>%
-  filter(TREATMENT.GROUP != "") %>%
-  filter(X3..Which.dose.is.this.for != "",
-         X3..Which.dose.is.this.for != "Dose 4",
-         X3..Which.dose.is.this.for != "Dose 5",
-         X3..Which.dose.is.this.for != "NA") %>%
-  dplyr::select(id = "Participant.ID", control = PATIENT.TYPE, any_systemic_AE, dose = X3..Which.dose.is.this.for) %>%
+  dplyr::select(id = "Participant.ID", control = PATIENT.TYPE, any_systemic_AE, dose) %>%
   mutate(systemic_ae = ifelse(any_systemic_AE == "None", 0, 1)) %>%
   dplyr::select(-any_systemic_AE) %>%
   group_by(dose, control) %>%
@@ -1119,8 +1022,8 @@ df %>%
          fold = `Post-dose 2` / `6 months post-dose 2`)
   
 rm(seroconversion, sero2, sero3, check, check2)
-rm(text1, text2, text3, group.labs, i, time.labs, time.labs2)
-rm(check_wide, check_wide2, df_s11, df_s12, df3c, df6)
+rm(text1, text2, text3, group.labs, time.labs, time.labs2)
+rm(df_s11, df_s12, df3c, df6)
 
 
 
@@ -1130,7 +1033,7 @@ rm(check_wide, check_wide2, df_s11, df_s12, df3c, df6)
 
 # Identify the breakthrough infections
 df$breakthru = case_when(ymd(df$date_first_COVID_pos) > ymd(df$vaccine_1_date) & 
-                           ymd(df$date_first_COVID_pos) <= ymd("2022-04-28") ~ "Breakthru",
+                         ymd(df$date_first_COVID_pos) <= ymd("2022-04-28") ~ "Breakthru",
                          ymd(df$date_first_COVID_pos) < ymd(df$vaccine_1_date) ~ "COVID pre-dose 1",
                          TRUE ~ "No breakthru")
 
@@ -1587,7 +1490,7 @@ variant_plot_swimmer_plot
 save_plot("fig4.pdf", variant_plot_swimmer_plot, base_height = 6.5, base_width = 13.25, dpi = 300) # Excellent
 
 rm(bt, controlvar, integrate, labels3, likely_var, newvaxdf2_line,
-   variants, variants2, variants3, variants4, by, i, j, labels,
+   variants, variants2, variants3, variants4, i, j, labels,
    labels_vec, saturdays)
 
 
