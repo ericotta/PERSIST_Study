@@ -32,7 +32,7 @@ library(cowplot)
 
 # Load the data. Change the file locations as needed
 load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data.RData")
-load("C:/Users/bustosfa/Rotation 2/Data/Final_AE_data.RData")
+load("C:/Users/bustosfa/Rotation 2/Data/Final_AE_data_v3.RData")
 variants <- read.csv(here("C:/Users/bustosfa/Rotation 2/Data", "variants.csv"))
 
 # Custom FB functions
