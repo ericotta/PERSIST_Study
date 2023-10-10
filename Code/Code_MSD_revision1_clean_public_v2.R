@@ -1723,7 +1723,10 @@ fig_s4 +
 
 
 # Load the ELISA data
-load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data.RData")
+load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data_v2.RData")
+
+# Work on a copy of the dataset (df) instead of the original one (df_v2)
+df <- df_v2
 
 # Comparing ELISA IgG to MSD
 powers_of_ten_labels3 <- c(expression("10"^-3), expression("10"^-2), 
@@ -1733,7 +1736,7 @@ powers_of_ten_labels3 <- c(expression("10"^-3), expression("10"^-2),
                            expression("10"^5), expression("10"^6))
 
 elisa <- df %>%
-  filter(analyte == "Spike IgG" & timepoint %in% as.character(unique(all_IgG2$time)))  %>%
+  filter(timepoint %in% as.character(unique(all_IgG2$time)))  %>%
   dplyr::select(id = `Subject ID`, group = new_group, value = conc.ug_ml, time = timepoint) %>%
   mutate(source = "ELISA") %>%
   mutate(id2 = paste0(id, "_", time))

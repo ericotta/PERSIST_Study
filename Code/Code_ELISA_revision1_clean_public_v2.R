@@ -31,7 +31,7 @@ library(grid)
 library(cowplot)
 
 # Load the data. Change the file locations as needed
-load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data.RData")
+load("C:/Users/bustosfa/Rotation 2/Data/Final_ELISA_data_v2.RData")
 load("C:/Users/bustosfa/Rotation 2/Data/Final_AE_data_v3.RData")
 variants <- read.csv(here("C:/Users/bustosfa/Rotation 2/Data", "variants.csv"))
 
@@ -112,6 +112,9 @@ element_grob.theme_border <- function(
     gp = modifyList(element_gp, gp),
   )
 }
+
+# Work on a copy of the dataset (df) instead of the original one (df_v2)
+df <- df_v2
 
 
 
@@ -330,6 +333,10 @@ fig_3b
 
 #### Figure 3c - Sensitivity analysis: Evusheld use ----
 
+## NOTE: Figure 3c is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The figure produced by the code below may not
+## recover the figure in the accompanying paper, which was created with the real data
+
 
 
 df1 <- df1 %>%
@@ -343,10 +350,10 @@ df1$evu_plot = factor(df1$evu_plot, levels = c("Yes","No"))
 
 
 df1 %>% 
-  dplyr::select(`Subject ID`, Any_evusheld, date_evusheld, Collection.date, 
+  dplyr::select(`Subject ID`, Any_evusheld, date_evusheld_sj, 
                 evusheld_before_sample, timepoint, conc.ug_ml, new_group, evu_plot) %>%
   subset(new_group != "Healthy volunteer") %>%
-  subset(date_evusheld < ymd("2022-04-29") | is.na(date_evusheld) == TRUE) -> df3c 
+  subset(date_evusheld_sj < ymd("2022-04-29") | is.na(date_evusheld_sj) == TRUE) -> df3c 
 
 
 df3c %>%                      
@@ -455,22 +462,27 @@ save_plot("fig3.pdf", fig_3, base_height = 6.5, base_width = 13.25, dpi = 300) #
 
 #### Figure S3 - Days between doses ----
 
+## NOTE: Figure S3 is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The figure produced by the code below may not
+## recover the figure in the accompanying paper, which was created with the real data.
+
+
 
 
 # Make the dataset for this figure
 dfs3 <- df %>%
   ungroup() %>%
-  dplyr::select(`Subject ID`, vaccine_1_date, vaccine_2_date, vaccine_3_date,
+  dplyr::select(`Subject ID`, vaccine_1_date_sj, vaccine_2_date_sj, vaccine_3_date_sj,
                 IDorHV) %>%
   distinct() 
 
-dfs3$vaccine_3_date2 <- dfs3$vaccine_3_date
-dfs3[dfs3$vaccine_3_date2 >= "2022-04-28" & 
-       !is.na(dfs3$vaccine_3_date2),]$vaccine_3_date2 <- NA
+dfs3$vaccine_3_date_sj2 <- dfs3$vaccine_3_date_sj
+dfs3[dfs3$vaccine_3_date_sj2 >= "2022-04-28" & 
+       !is.na(dfs3$vaccine_3_date_sj2),]$vaccine_3_date_sj2 <- NA
 
 dfs3 %>%
-  mutate(diff1 = as.integer(difftime(vaccine_2_date, vaccine_1_date, "days")),
-         diff2 = as.integer(difftime(vaccine_3_date2, vaccine_2_date, "days"))) %>%
+  mutate(diff1 = as.integer(difftime(vaccine_2_date_sj, vaccine_1_date_sj, "days")),
+         diff2 = as.integer(difftime(vaccine_3_date_sj2, vaccine_2_date_sj, "days"))) %>%
   dplyr::select(`Subject ID`, diff1, diff2, IDorHV) -> dfs3
 
 # Make the figures
@@ -726,13 +738,17 @@ fig_s13
 
 #### Figure S14 - Rituximab ----
 
+## NOTE: Figure S14 is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The figure produced by the code below may not
+## recover the figure in the accompanying paper, which was created with the real data.
+
 
 
 # Get the data for this plot
 df6 <- df %>%
   subset(Rituximab == "Yes") %>%
   subset(timepoint != "Post-dose 4" & !is.na(timepoint)) %>%
-  mutate(time.diff = ymd(vaccine_1_date) - ymd(last_ritux_before_vaccination),
+  mutate(time.diff = ymd(vaccine_1_date_sj) - ymd(last_ritux_before_vaccination_sj),
          rituximab.group = 
            case_when(
              time.diff <= 180 ~ "<6 months",
@@ -1029,12 +1045,16 @@ rm(df_s11, df_s12, df3c, df6)
 
 ### Compare IDP titers at pd3 and 6mpd3 ----
 
+## NOTE: This analysis is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The results produced by the code below may not
+## recover the results in the accompanying paper, which was created with the real data.
+
 
 
 # Identify the breakthrough infections
-df$breakthru = case_when(ymd(df$date_first_COVID_pos) > ymd(df$vaccine_1_date) & 
-                         ymd(df$date_first_COVID_pos) <= ymd("2022-04-28") ~ "Breakthru",
-                         ymd(df$date_first_COVID_pos) < ymd(df$vaccine_1_date) ~ "COVID pre-dose 1",
+df$breakthru = case_when(ymd(df$date_first_COVID_pos_sj_sj) > ymd(df$vaccine_1_date_sj) & 
+                         ymd(df$date_first_COVID_pos_sj_sj) <= ymd("2022-04-28") ~ "Breakthru",
+                         ymd(df$date_first_COVID_pos_sj_sj) < ymd(df$vaccine_1_date_sj) ~ "COVID pre-dose 1",
                          TRUE ~ "No breakthru")
 
 # Check if the titer levels among IDP differ between post-dose 3 and 6 months later
@@ -1069,11 +1089,16 @@ wilcox.test(check_wide2$`Post-dose 3`, check_wide2$`6 months post-dose 3`, paire
 
 ### Detectability of titers for rituximab users ----
 
+## NOTE: This analysis is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The results produced by the code below may not
+## recover the results in the accompanying paper, which was created with the real data.
+
+
 
 df6 <- df %>%
   subset(Rituximab == "Yes") %>%
   subset(timepoint != "Post-dose 4" & !is.na(timepoint)) %>%
-  mutate(time.diff = ymd(vaccine_1_date) - ymd(last_ritux_before_vaccination),
+  mutate(time.diff = ymd(vaccine_1_date_sj) - ymd(last_ritux_before_vaccination_sj),
          rituximab.group = 
            case_when(
              time.diff <= 180 ~ "<6 months",
@@ -1101,6 +1126,10 @@ rm(check, df6, df1)
 
 
 #### Figure 4: Variant wave & Table S10 ----
+
+## NOTE: This analysis is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The figure/results produced by the code below may not
+## recover the figure/results in the accompanying paper, which was created with the real data.
 
 
 
@@ -1206,26 +1235,26 @@ bt$bt_binary <- ifelse(bt$breakthru == "Breakthru", 1, 0)
 
 newvaxdf <- bt %>%
   filter(bt_binary==1) %>%
-  dplyr::select(`Subject ID`, vaccine_2_date, vaccine_3_date, date_first_COVID_pos) %>%
-  mutate(between_vax23 = ifelse(date_first_COVID_pos >= vaccine_2_date & 
-                                  date_first_COVID_pos <= vaccine_3_date, 1, 0)) %>%
-  mutate(after_vax3 = ifelse(date_first_COVID_pos > vaccine_3_date, 1, 0)) %>%
-  mutate(after_vax2_no_vax3 = ifelse(date_first_COVID_pos >= vaccine_2_date & 
-                                       is.na(vaccine_3_date), 1, 0))
+  dplyr::select(`Subject ID`, vaccine_2_date_sj, vaccine_3_date_sj, date_first_COVID_pos_sj) %>%
+  mutate(between_vax23 = ifelse(date_first_COVID_pos_sj >= vaccine_2_date_sj & 
+                                  date_first_COVID_pos_sj <= vaccine_3_date_sj, 1, 0)) %>%
+  mutate(after_vax3 = ifelse(date_first_COVID_pos_sj > vaccine_3_date_sj, 1, 0)) %>%
+  mutate(after_vax2_no_vax3 = ifelse(date_first_COVID_pos_sj >= vaccine_2_date_sj & 
+                                       is.na(vaccine_3_date_sj), 1, 0))
 
 # Make sure dates are formatted
-newvaxdf$vaccine_2_date <- format(as.Date(newvaxdf$vaccine_2_date, 
+newvaxdf$vaccine_2_date_sj <- format(as.Date(newvaxdf$vaccine_2_date_sj, 
                                           format = '%m/%d/%Y'))
-newvaxdf$vaccine_3_date <- format(as.Date(newvaxdf$vaccine_3_date, 
+newvaxdf$vaccine_3_date_sj <- format(as.Date(newvaxdf$vaccine_3_date_sj, 
                                           format = '%m/%d/%Y'))
-newvaxdf$date_first_COVID_pos <- format(as.Date(newvaxdf$date_first_COVID_pos, 
+newvaxdf$date_first_COVID_pos_sj <- format(as.Date(newvaxdf$date_first_COVID_pos_sj, 
                                                 format = '%m/%d/%Y'))
 
 # Get the saturday for the second vaccine date
 newvaxdf$saturday_vax2 <- NA
 for(i in 1:nrow(newvaxdf)){
   for(j in 1:length(saturdays)){
-    if(newvaxdf$vaccine_2_date[i] > saturdays[j]){
+    if(newvaxdf$vaccine_2_date_sj[i] > saturdays[j]){
       newvaxdf$saturday_vax2[i] <- format(as.Date(saturdays[j + 1], format = '%m/%d/%Y'))
     }
   }
@@ -1235,7 +1264,7 @@ for(i in 1:nrow(newvaxdf)){
 newvaxdf$saturday_covid <- NA
 for(i in 1:nrow(newvaxdf)){
   for(j in 1:length(saturdays)){
-    if(newvaxdf$date_first_COVID_pos[i] > saturdays[j]){
+    if(newvaxdf$date_first_COVID_pos_sj[i] > saturdays[j]){
       newvaxdf$saturday_covid[i] <- format(as.Date(saturdays[j + 1], format = '%m/%d/%Y'))
     }
   }
@@ -1245,7 +1274,7 @@ for(i in 1:nrow(newvaxdf)){
 newvaxdf$saturday_vax3 <- NA
 for(i in 1:nrow(newvaxdf)){
   for(j in 1:length(saturdays)){
-    if(!is.na(newvaxdf$vaccine_3_date[i]) & newvaxdf$vaccine_3_date[i] > saturdays[j]){
+    if(!is.na(newvaxdf$vaccine_3_date_sj[i]) & newvaxdf$vaccine_3_date_sj[i] > saturdays[j]){
       newvaxdf$saturday_vax3[i] <- format(as.Date(saturdays[j + 1], format = '%m/%d/%Y'))
     }
   }
@@ -1497,22 +1526,26 @@ rm(bt, controlvar, integrate, labels3, likely_var, newvaxdf2_line,
 
 #### Median time bw most recent dose and breakthrough infection ----
 
+## NOTE: This analysis is impacted by the shifting and jittering of dates that was
+## implemented to deidentify the data. The results produced by the code below may not
+## recover the results in the accompanying paper, which was created with the real data.
+
 
 
 # Assign NA to dose 3 date for those after infection or realm of consideration
-newvaxdf[newvaxdf$vaccine_3_date >= "2022-06-04" & 
-            !is.na(newvaxdf$vaccine_3_date),]$vaccine_3_date <- NA
+newvaxdf[newvaxdf$vaccine_3_date_sj >= "2022-06-04" & 
+            !is.na(newvaxdf$vaccine_3_date_sj),]$vaccine_3_date_sj <- NA
 
-newvaxdf[newvaxdf$vaccine_3_date >= newvaxdf$date_first_COVID_pos & 
-           !is.na(newvaxdf$vaccine_3_date),]$vaccine_3_date <- NA
+newvaxdf[newvaxdf$vaccine_3_date_sj >= newvaxdf$date_first_COVID_pos_sj & 
+           !is.na(newvaxdf$vaccine_3_date_sj),]$vaccine_3_date_sj <- NA
 
 # Calculate date of doses to breakthrough infection
-newvaxdf$date_dose2_to_inf <- as.numeric(difftime(newvaxdf$date_first_COVID_pos, 
-                                                  newvaxdf$vaccine_2_date, 
+newvaxdf$date_dose2_to_inf <- as.numeric(difftime(newvaxdf$date_first_COVID_pos_sj, 
+                                                  newvaxdf$vaccine_2_date_sj, 
                                                   units = "days"))
 
-newvaxdf$date_dose3_to_inf <- as.numeric(difftime(newvaxdf$date_first_COVID_pos, 
-                                                  newvaxdf$vaccine_3_date, 
+newvaxdf$date_dose3_to_inf <- as.numeric(difftime(newvaxdf$date_first_COVID_pos_sj, 
+                                                  newvaxdf$vaccine_3_date_sj, 
                                                   units = "days"))
 
 # Calculate days from covid infection to most recent vaccination
